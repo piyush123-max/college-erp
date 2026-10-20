@@ -1,0 +1,61 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build - install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Test - run pytest
+        run: pytest -v
+
+  package:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package application
+        run: |
+          mkdir dist
+          zip -r dist/college-erp.zip app.py requirements.txt README.md
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: college-erp-package
+          path: dist/college-erp.zip
+
+  deploy:
+    needs: package
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name: college-erp-package
+
+      - name: Deploy (simulated)
+        run: |
+          mkdir -p /tmp/college-erp-prod
+          unzip college-erp.zip -d /tmp/college-erp-prod
+          echo "Deployed College ERP to production directory:"
+          ls -la /tmp/college-erp-prod
